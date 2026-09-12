@@ -60,6 +60,10 @@ class SprayViewModel: NSObject, ObservableObject, AVCaptureVideoDataOutputSample
     override init() {
         super.init()
         cameraManager.sampleBufferDelegate = self
+        
+        // 사운드 파일 미리 로드
+        SoundManager.shared.setupSounds()
+        
         Task {
             await visionManager.loadModel()
         }
@@ -102,6 +106,19 @@ class SprayViewModel: NSObject, ObservableObject, AVCaptureVideoDataOutputSample
             self.currentDrawingPoint = nil
             self.currentHandPoint = nil
             self.sprayUIState = .hidden
+        }
+        
+        // --- 사운드 재생/정지 로직 ---
+        if self.sprayUIState == .shaking {
+            SoundManager.shared.playShake()
+        } else {
+            SoundManager.shared.stopShake()
+        }
+        
+        if self.sprayUIState == .spraying && self.paintGauge > 0 {
+            SoundManager.shared.playSpray()
+        } else {
+            SoundManager.shared.stopSpray()
         }
     }
 }
