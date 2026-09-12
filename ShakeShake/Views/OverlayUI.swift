@@ -10,6 +10,8 @@ import SwiftUI
 struct OverlayUI: View {
     @ObservedObject var viewModel: SprayViewModel
     
+    let colors: [Color] = [.red, .blue, .green, .yellow, .black, .white, .purple, .orange]
+    
     var body: some View {
         VStack {
             HStack {
@@ -19,7 +21,41 @@ struct OverlayUI: View {
                     .padding()
                     .background(Color.black.opacity(0.6))
                     .cornerRadius(8)
+                
                 Spacer()
+                
+                // 컬러 팔레트
+                HStack(spacing: 12) {
+                    ForEach(colors, id: \.self) { color in
+                        Circle()
+                            .fill(color)
+                            .frame(width: 30, height: 30)
+                            .overlay(
+                                Circle().stroke(Color.white, lineWidth: viewModel.selectedColor == color ? 3 : 0)
+                            )
+                            .onTapGesture {
+                                viewModel.selectedColor = color
+                            }
+                    }
+                }
+                .padding()
+                .background(Color.black.opacity(0.6))
+                .cornerRadius(8)
+                
+                Spacer()
+                
+                // 전체 지우기 버튼
+                Button(action: {
+                    viewModel.clearTrigger += 1
+                }) {
+                    Text("지우기 🗑")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .padding()
+                        .background(Color.red.opacity(0.8))
+                        .cornerRadius(8)
+                }
+                .buttonStyle(PlainButtonStyle())
             }
             Spacer()
             HStack {

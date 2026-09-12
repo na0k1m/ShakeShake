@@ -16,6 +16,10 @@ class SprayViewModel: NSObject, ObservableObject, AVCaptureVideoDataOutputSample
     @Published var paintGauge: CGFloat = 0.0
     @Published var currentDrawingPoint: CGPoint? = nil
     
+    // 새로 추가된 기능 상태들
+    @Published var selectedColor: Color = .red
+    @Published var clearTrigger: Int = 0
+    
     let cameraManager = CameraManager()
     private let visionManager = VisionMLManager()
     
@@ -30,22 +34,28 @@ class SprayViewModel: NSObject, ObservableObject, AVCaptureVideoDataOutputSample
     nonisolated func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
         Task {
             let result = await visionManager.processFrame(sampleBuffer)
-            await updateState(state: result.state, deltaY: result.deltaY, drawingPoint: result.drawingPoint)
+            await updateState(state: result.state, deltaX: result.deltaX, deltaY: result.deltaY, drawingPoint: result.drawingPoint, isSpraying: result.isSpraying)
         }
     }
     
-    private func updateState(state: PoseState, deltaY: CGFloat, drawingPoint: CGPoint?) {
+    private func updateState(state: PoseState, deltaX: CGFloat, deltaY: CGFloat, drawingPoint: CGPoint?, isSpraying: Bool) {
         self.currentState = state
         
         if state == .fist {
-            let increment = deltaY * 2.0 // 흔들기 감도
-            paintGauge = min(1.0, paintGauge + increment)
+            // Y축으로는 빠르고 크게 흔들고(> 0.03), X축(좌우)으로는 거의 움직이지 않아야(< 0.015) 깐깐하게 인정!
+            if deltaY > 0.03 && deltaX < 0.015 {
+                let increment = deltaY * 0.8 
+                paintGauge = min(1.0, paintGauge + increment)
+            }
             self.currentDrawingPoint = nil
         } else if state == .holdingCan {
-            if paintGauge > 0 {
+            // 손 모양이 캔이고, 검지가 굽어있고(isSpraying == true), 페인트가 남아있을 때만 그림
+            if paintGauge > 0 && isSpraying {
                 self.currentDrawingPoint = drawingPoint
-                paintGauge = max(0.0, paintGauge - 0.01) // 페인트 소모 속도
+                // 페인트 소모 속도를 더 늦춤 (기존 0.003 -> 0.0015)
+                paintGauge = max(0.0, paintGauge - 0.0015) 
             } else {
+                // 페인트가 없거나, 검지를 쫙 펴고(조준) 있으면 선이 이어지지 않음
                 self.currentDrawingPoint = nil
             }
         } else {
