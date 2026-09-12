@@ -1,0 +1,67 @@
+# =========================
+# macOS / Xcode
+# =========================
+# User settings
+xcuserdata/
+
+# Build artifacts
+build/
+DerivedData/
+*.moved-aside
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+
+# App packaging
+*.ipa
+*.dSYM.zip
+*.dSYM
+*.app
+
+# Playgrounds
+timeline.xctimeline
+playground.xcworkspace
+
+# Swift Package Manager
+.build/
+# Packages/
+# Package.pins
+# Package.resolved
+
+# =========================
+# OS X
+# =========================
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# =========================
+# Create ML & Machine Learning
+# =========================
+# 컴파일된 ML 모델
+*.mlmodelc
+# 머신러닝 학습에 사용되는 대용량 데이터셋 및 임시 폴더
+Datasets/
+TrainingData/
+# 참고: 최종 적용을 위한 HandPoseClassifier.mlmodel 등은 일반적으로 형상관리에 포함하지만,
+# 크기가 너무 크거나 중간 산출물이라면 제외할 수 있습니다.
+
+# =========================
+# 프로젝트 커스텀 예외
+# =========================
+# 기획서 파일 제외
+ShakeShake_Plan.md
