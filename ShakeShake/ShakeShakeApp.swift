@@ -9,9 +9,20 @@ import SwiftUI
 
 @main
 struct ShakeShakeApp: App {
+    @StateObject private var viewModel = SprayViewModel()
+    
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ZStack {
+                CameraPreviewView(session: viewModel.cameraManager.session)
+                    .edgesIgnoringSafeArea(.all)
+                
+                MainCanvasView(viewModel: viewModel)
+                    .edgesIgnoringSafeArea(.all)
+                
+                OverlayUI(viewModel: viewModel)
+            }
+            .frame(minWidth: 800, minHeight: 600)
         }
     }
 }
