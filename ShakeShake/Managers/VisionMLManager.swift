@@ -59,6 +59,8 @@ actor VisionMLManager {
             
             if state == .fist {
                 let wristPoint = try observation.recognizedPoint(.wrist)
+                let fistCenter = try? observation.recognizedPoint(.middleMCP) // 주먹의 중심부(중지 관절)
+                
                 if wristPoint.confidence > 0.5 {
                     let currentPoint = wristPoint.location
                     if let prevPoint = previousWrist {
@@ -66,6 +68,13 @@ actor VisionMLManager {
                         deltaY = abs(currentPoint.y - prevPoint.y)
                     }
                     previousWrist = currentPoint
+                    
+                    // 주먹을 쥐었을 때 에셋이 손목이 아닌 주먹(너클) 쪽에 위치하도록 수정
+                    if let center = fistCenter, center.confidence > 0.3 {
+                        drawingPoint = center.location
+                    } else {
+                        drawingPoint = currentPoint
+                    }
                 }
             } else if state == .holdingCan {
                 let indexTipPoint = try? observation.recognizedPoint(.indexTip)

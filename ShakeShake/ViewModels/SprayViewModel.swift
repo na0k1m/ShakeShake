@@ -12,9 +12,27 @@ import Combine
 
 @MainActor
 class SprayViewModel: NSObject, ObservableObject, AVCaptureVideoDataOutputSampleBufferDelegate {
+    enum SprayUIState {
+        case hidden
+        case shaking
+        case idle
+        case spraying
+    }
+    
     @Published var currentState: PoseState = .unknown
     @Published var paintGauge: CGFloat = 0.0
     @Published var currentDrawingPoint: CGPoint? = nil
+    @Published var currentHandPoint: CGPoint? = nil
+    @Published var sprayUIState: SprayUIState = .hidden
+    
+    var sprayImageName: String {
+        switch sprayUIState {
+        case .spraying: return "spray_active"
+        case .idle:     return "spray_idle"
+        case .shaking:  return "spray_shake"
+        case .hidden:   return ""
+        }
+    }
     
     // 새로 추가된 기능 상태들
     @Published var selectedColor: Color = .red
@@ -42,6 +60,9 @@ class SprayViewModel: NSObject, ObservableObject, AVCaptureVideoDataOutputSample
         self.currentState = state
         
         if state == .fist {
+            self.currentHandPoint = drawingPoint
+            self.sprayUIState = .shaking
+            
             // Y축으로는 빠르고 크게 흔들고(> 0.03), X축(좌우)으로는 거의 움직이지 않아야(< 0.015) 깐깐하게 인정!
             if deltaY > 0.03 && deltaX < 0.015 {
                 let increment = deltaY * 0.8 
@@ -49,6 +70,9 @@ class SprayViewModel: NSObject, ObservableObject, AVCaptureVideoDataOutputSample
             }
             self.currentDrawingPoint = nil
         } else if state == .holdingCan {
+            self.currentHandPoint = drawingPoint
+            self.sprayUIState = isSpraying ? .spraying : .idle
+            
             // 손 모양이 캔이고, 검지가 굽어있고(isSpraying == true), 페인트가 남아있을 때만 그림
             if paintGauge > 0 && isSpraying {
                 self.currentDrawingPoint = drawingPoint
@@ -60,6 +84,8 @@ class SprayViewModel: NSObject, ObservableObject, AVCaptureVideoDataOutputSample
             }
         } else {
             self.currentDrawingPoint = nil
+            self.currentHandPoint = nil
+            self.sprayUIState = .hidden
         }
     }
 }
