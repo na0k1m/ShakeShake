@@ -19,23 +19,39 @@ class SprayViewModel: NSObject, ObservableObject, AVCaptureVideoDataOutputSample
         case spraying
     }
     
+    enum SprayColor: String, CaseIterable {
+        case red = "SprayRed"
+        case orange = "SprayOrange"
+        case yellow = "SprayYellow"
+        case green = "SprayGreen"
+        case blue = "SprayBlue"
+        case purple = "SprayPurple"
+        case white = "SprayWhite"
+        case black = "SprayBlack"
+        
+        var color: Color { Color(self.rawValue) }
+    }
+    
     @Published var currentState: PoseState = .unknown
     @Published var paintGauge: CGFloat = 0.0
     @Published var currentDrawingPoint: CGPoint? = nil
     @Published var currentHandPoint: CGPoint? = nil
     @Published var sprayUIState: SprayUIState = .hidden
     
+    // 선택된 페인트 색상 (에셋 이름과 연동)
+    @Published var selectedSprayColor: SprayColor = .red
+    var selectedColor: Color { selectedSprayColor.color }
+    
     var sprayImageName: String {
+        let suffix = "_\(selectedSprayColor.rawValue)" // 예: "_SprayRed"
         switch sprayUIState {
-        case .spraying: return "spray_active"
-        case .idle:     return "spray_idle"
-        case .shaking:  return "spray_shake"
+        case .spraying: return "spray_active\(suffix)"
+        case .idle:     return "spray_idle\(suffix)"
+        case .shaking:  return "spray_shake\(suffix)"
         case .hidden:   return ""
         }
     }
     
-    // 새로 추가된 기능 상태들
-    @Published var selectedColor: Color = .red
     @Published var clearTrigger: Int = 0
     
     let cameraManager = CameraManager()

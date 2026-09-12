@@ -10,89 +10,145 @@ import SwiftUI
 struct OverlayUI: View {
     @ObservedObject var viewModel: SprayViewModel
     
-    let colors: [Color] = [.red, .blue, .green, .yellow, .black, .white, .purple, .orange]
-    
     var body: some View {
         VStack {
-            HStack {
-                Text(stateText())
-                    .font(.title2.bold())
-                    .foregroundColor(.white)
-                    .padding()
-                    .background(Color.black.opacity(0.6))
-                    .cornerRadius(8)
+            // --- Top HUD ---
+            HStack(alignment: .center, spacing: 20) {
+                
+                // 1. 상태 알림바
+                HStack(spacing: 8) {
+                    statusIcon()
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(.primary)
+                    
+                    Text(statusText())
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .foregroundColor(.primary)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(.ultraThinMaterial)
+                .clipShape(Capsule())
+                .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
                 
                 Spacer()
                 
-                // 컬러 팔레트
+                // 2. 컬러 팔레트
                 HStack(spacing: 12) {
-                    ForEach(colors, id: \.self) { color in
+                    ForEach(SprayViewModel.SprayColor.allCases, id: \.self) { sprayColor in
+                        let color = sprayColor.color
+                        let isSelected = viewModel.selectedSprayColor == sprayColor
+                        
                         Circle()
                             .fill(color)
-                            .frame(width: 30, height: 30)
+                            .frame(width: 26, height: 26)
                             .overlay(
-                                Circle().stroke(Color.white, lineWidth: viewModel.selectedColor == color ? 3 : 0)
+                                Circle()
+                                    .stroke(Color.primary.opacity(0.8), lineWidth: isSelected ? 3 : 0)
                             )
+                            .shadow(color: color.opacity(0.4), radius: isSelected ? 6 : 0)
+                            .scaleEffect(isSelected ? 1.2 : 1.0)
+                            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: viewModel.selectedSprayColor)
                             .onTapGesture {
-                                viewModel.selectedColor = color
+                                viewModel.selectedSprayColor = sprayColor
                             }
                     }
                 }
-                .padding()
-                .background(Color.black.opacity(0.6))
-                .cornerRadius(8)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
+                .background(.ultraThinMaterial)
+                .clipShape(Capsule())
+                .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
                 
                 Spacer()
                 
-                // 전체 지우기 버튼
+                // 3. 지우기 버튼
                 Button(action: {
-                    viewModel.clearTrigger += 1
+                    withAnimation {
+                        viewModel.clearTrigger += 1
+                    }
                 }) {
-                    Text("지우기 🗑")
-                        .font(.headline)
-                        .foregroundColor(.white)
-                        .padding()
-                        .background(Color.red.opacity(0.8))
-                        .cornerRadius(8)
+                    HStack(spacing: 6) {
+                        Image(systemName: "eraser.fill")
+                        Text("전체 지우기")
+                    }
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .foregroundColor(.primary)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(.ultraThinMaterial)
+                    .clipShape(Capsule())
                 }
                 .buttonStyle(PlainButtonStyle())
+                .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
             }
+            .padding(.top, 30)
+            .padding(.horizontal, 40)
+            
             Spacer()
-            HStack {
-                Text("Paint Gauge")
-                    .font(.headline)
-                    .foregroundColor(.white)
+            
+            // --- Bottom Paint Gauge ---
+            VStack(spacing: 12) {
+                HStack {
+                    Image(systemName: "drop.fill")
+                        .foregroundColor(gaugeColor())
+                    
+                    Text("페인트 잔량")
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .foregroundColor(.primary)
+                    
+                    Spacer()
+                    
+                    Text("\(Int(viewModel.paintGauge * 100))%")
+                        .font(.system(size: 14, weight: .bold, design: .monospaced))
+                        .foregroundColor(gaugeColor())
+                }
+                
                 GeometryReader { geometry in
                     ZStack(alignment: .leading) {
-                        Rectangle()
-                            .fill(Color.gray.opacity(0.5))
-                        Rectangle()
+                        Capsule()
+                            .fill(Color.gray.opacity(0.2))
+                        
+                        Capsule()
                             .fill(gaugeColor())
-                            .frame(width: geometry.size.width * viewModel.paintGauge)
-                            .animation(.easeInOut, value: viewModel.paintGauge)
+                            .frame(width: max(0, geometry.size.width * viewModel.paintGauge))
                     }
-                    .cornerRadius(10)
+                    // 자연스러운 차징/소모 애니메이션
+                    .animation(.interactiveSpring(response: 0.4, dampingFraction: 0.8), value: viewModel.paintGauge)
                 }
-                .frame(height: 24)
+                .frame(height: 12)
             }
-            .padding()
-            .background(Color.black.opacity(0.6))
-            .cornerRadius(12)
+            .padding(24)
+            .frame(width: 320)
+            .background(.ultraThinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+            .shadow(color: .black.opacity(0.15), radius: 15, x: 0, y: 8)
+            .padding(.bottom, 40)
         }
-        .padding(30)
     }
     
-    private func stateText() -> String {
+    // SF Symbols 활용
+    private func statusIcon() -> Image {
         switch viewModel.currentState {
-        case .fist: return "✊ 흔들어서 충전하세요!"
-        case .holdingCan: return "🎨 스프레이 뿌리는 중..."
-        case .unknown: return "손을 보여주세요 👋"
+        case .fist: return Image(systemName: "battery.100.bolt")
+        case .holdingCan: return Image(systemName: "paintbrush.pointed.fill")
+        case .unknown: return Image(systemName: "viewfinder")
+        }
+    }
+    
+    private func statusText() -> String {
+        switch viewModel.currentState {
+        case .fist: return "위아래로 흔들어 충전"
+        case .holdingCan: return "스프레이 조준 중"
+        case .unknown: return "카메라에 손을 인식해주세요"
         }
     }
     
     private func gaugeColor() -> Color {
         if viewModel.paintGauge < 0.2 { return .red }
         if viewModel.paintGauge < 0.5 { return .orange }
-        return .blue
+        
+        // 🍯 게이지 색상을 현재 선택한 페인트 색상과 동일하게 맞춰서 시각적 즐거움 부여
+        return viewModel.selectedColor == .white ? .gray : viewModel.selectedColor
     }
 }
