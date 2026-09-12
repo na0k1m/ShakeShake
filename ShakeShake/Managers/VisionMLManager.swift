@@ -18,6 +18,11 @@ actor VisionMLManager {
     private var wasSpraying: Bool = false
     private var missingFramesCount: Int = 0
     
+    // ML 예측 튐(Flickering) 방지를 위한 상태 추적 변수
+    private var lastStableState: PoseState = .unknown
+    private var candidateState: PoseState = .unknown
+    private var candidateStateCount: Int = 0
+    
     init() {
         // 모델 로드는 비동기로 처리합니다.
     }
@@ -40,6 +45,13 @@ actor VisionMLManager {
         let request = VNDetectHumanHandPoseRequest()
         request.maximumHandCount = 1
         
+        var rawState: PoseState = .unknown
+        var state: PoseState = .unknown
+        var deltaX: CGFloat = 0.0
+        var deltaY: CGFloat = 0.0
+        var drawingPoint: CGPoint? = nil
+        var isSpraying = false
+        
         do {
             try requestHandler.perform([request])
             guard let observation = request.results?.first else {
@@ -47,18 +59,59 @@ actor VisionMLManager {
                 return (.unknown, 0, 0, nil, false)
             }
             
-            // 모델에 주입하기 위한 MultiArray 변환
-            let keypointsMultiArray = try observation.keypointsMultiArray()
-            
-            guard let prediction = try await model?.prediction(poses: keypointsMultiArray) else {
-                return (.unknown, 0, 0, nil, false)
+            if let multiArray = try? observation.keypointsMultiArray() {
+                if let prediction = try? await model?.prediction(poses: multiArray) {
+                    rawState = PoseState(rawValue: prediction.label) ?? .unknown
+                }
             }
             
-            let state = PoseState(rawValue: prediction.label) ?? .unknown
-            var deltaX: CGFloat = 0
-            var deltaY: CGFloat = 0
-            var drawingPoint: CGPoint? = nil
-            var isSpraying: Bool = false
+            // ⭐️ ML 모델 오판 강제 교정 (Geometric Override)
+            // 화면 밖으로 새끼손가락이 잘렸을 때 ML이 '주먹(fist)'으로 오해하는 경우를 원천 차단합니다.
+            if rawState == .fist {
+                let tip = try? observation.recognizedPoint(.indexTip)
+                let mcp = try? observation.recognizedPoint(.indexMCP)
+                let wrist = try? observation.recognizedPoint(.wrist)
+                
+                if let t = tip, let m = mcp, let w = wrist,
+                   t.confidence > 0.3, m.confidence > 0.3, w.confidence > 0.3 {
+                    
+                    let fingerLength = hypot(t.location.x - m.location.x, t.location.y - m.location.y)
+                    let palmLength = hypot(m.location.x - w.location.x, m.location.y - w.location.y)
+                    
+                    // 주먹을 쥐면 검지손가락(fingerLength)이 손바닥(palmLength) 대비 매우 짧아집니다.
+                    // 만약 비율이 0.5 이상이라면 검지가 어느 정도 펴져 있다는 뜻이므로 주먹이 아닙니다!
+                    if (fingerLength / palmLength) > 0.5 {
+                        rawState = .holdingCan // 강제로 스프레이 쥐는 자세로 교정
+                    }
+                }
+            }
+            
+            // 상태 안정화 (Debouncing) 로직
+            if rawState == candidateState {
+                candidateStateCount += 1
+            } else {
+                candidateState = rawState
+                candidateStateCount = 1
+            }
+            
+            // Vision 좌표계에서 y가 0에 가까울수록 화면 하단(또는 상단, 방향에 따라 다름)
+            // 보통 macOS 카메라에서는 y < 0.2 이면 손이 화면 밑으로 빠져나가 잘리는 구간
+            let wristY = (try? observation.recognizedPoint(.wrist))?.location.y ?? 0.5
+            
+            // 화면 밖으로 손가락이 잘려나가면 ML이 손가락을 못 찾아서 '주먹(fist)'으로 오인식함.
+            // 이를 방지하기 위해 화면 가장자리(wristY < 0.2 또는 > 0.8)에서는 주먹으로의 상태 전환을 아주 엄격하게 방어
+            let requiredFrames: Int
+            if candidateState == .fist && (wristY < 0.2 || wristY > 0.8) {
+                requiredFrames = 10 // 가장자리에서는 10프레임(약 0.3초) 연속 주먹이어야 찐 주먹으로 인정
+            } else {
+                requiredFrames = 2  // 정상 범위에서는 2프레임만 연속되어도 바로 빠릿빠릿하게 상태 전환
+            }
+            
+            if candidateStateCount >= requiredFrames {
+                lastStableState = candidateState
+            }
+            
+            state = lastStableState
             
             if state == .fist {
                 let wristPoint = try observation.recognizedPoint(.wrist)
