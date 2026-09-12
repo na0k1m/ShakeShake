@@ -13,27 +13,28 @@ struct OverlayUI: View {
     var body: some View {
         VStack {
             // --- Top HUD ---
-            HStack(alignment: .center, spacing: 20) {
-                
-                // 1. 상태 알림바
-                HStack(spacing: 8) {
-                    statusIcon()
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(.primary)
+            ZStack {
+                // 1. 상태 알림바 (왼쪽 고정)
+                HStack {
+                    HStack(spacing: 8) {
+                        statusIcon()
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(.primary)
+                        
+                        Text(statusText())
+                            .font(.system(size: 15, weight: .semibold, design: .rounded))
+                            .foregroundColor(.primary)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(.ultraThinMaterial)
+                    .clipShape(Capsule())
+                    .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
                     
-                    Text(statusText())
-                        .font(.system(size: 15, weight: .semibold, design: .rounded))
-                        .foregroundColor(.primary)
+                    Spacer()
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(.ultraThinMaterial)
-                .clipShape(Capsule())
-                .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
                 
-                Spacer()
-                
-                // 2. 컬러 팔레트
+                // 2. 컬러 팔레트 (가운데 절대 고정)
                 HStack(spacing: 12) {
                     ForEach(SprayViewModel.SprayColor.allCases, id: \.self) { sprayColor in
                         let color = sprayColor.color
@@ -60,27 +61,28 @@ struct OverlayUI: View {
                 .clipShape(Capsule())
                 .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
                 
-                Spacer()
-                
-                // 3. 지우기 버튼
-                Button(action: {
-                    withAnimation {
-                        viewModel.clearTrigger += 1
+                // 3. 지우기 버튼 (오른쪽 고정)
+                HStack {
+                    Spacer()
+                    Button(action: {
+                        withAnimation {
+                            viewModel.clearTrigger += 1
+                        }
+                    }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "eraser.fill")
+                            Text("전체 지우기")
+                        }
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .foregroundColor(.primary)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                        .background(.ultraThinMaterial)
+                        .clipShape(Capsule())
                     }
-                }) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "eraser.fill")
-                        Text("전체 지우기")
-                    }
-                    .font(.system(size: 15, weight: .semibold, design: .rounded))
-                    .foregroundColor(.primary)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                    .background(.ultraThinMaterial)
-                    .clipShape(Capsule())
+                    .buttonStyle(PlainButtonStyle())
+                    .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
                 }
-                .buttonStyle(PlainButtonStyle())
-                .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
             }
             .padding(.top, 30)
             .padding(.horizontal, 40)

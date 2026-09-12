@@ -15,6 +15,8 @@ actor VisionMLManager {
     // 파일명이 다를 경우 해당 클래스명으로 변경해야 합니다.
     private var model: HandPoseClassifier?
     private var previousWrist: CGPoint?
+    private var wasSpraying: Bool = false
+    private var missingFramesCount: Int = 0
     
     init() {
         // 모델 로드는 비동기로 처리합니다.
@@ -41,6 +43,7 @@ actor VisionMLManager {
         do {
             try requestHandler.perform([request])
             guard let observation = request.results?.first else {
+                wasSpraying = false
                 return (.unknown, 0, 0, nil, false)
             }
             
@@ -76,6 +79,7 @@ actor VisionMLManager {
                         drawingPoint = currentPoint
                     }
                 }
+                wasSpraying = false
             } else if state == .holdingCan {
                 let indexTipPoint = try? observation.recognizedPoint(.indexTip)
                 let wristPoint = try? observation.recognizedPoint(.wrist)
@@ -87,6 +91,8 @@ actor VisionMLManager {
                     drawingPoint = tip.location
                 }
                 
+                var currentFrameSpraying = false
+                
                 // 검지 손가락이 구부러졌는지(스프레이를 누르는지) 판별
                 if let tip = indexTipPoint, let mcp = indexMCP, let wrist = wristPoint, 
                    tip.confidence > 0.3, mcp.confidence > 0.3, wrist.confidence > 0.3 {
@@ -94,13 +100,31 @@ actor VisionMLManager {
                     let palmDist = hypot(mcp.location.x - wrist.location.x, mcp.location.y - wrist.location.y)
                     
                     let ratio = fingerDist / palmDist
-                    // 살짝만 굽혀도 끊김 없이 잘 칠해지도록 비율 허용치를 상향 (0.65 -> 0.8)
-                    if ratio < 0.8 {
-                        isSpraying = true
+                    
+                    // ⭐️ 히스테리시스(Hysteresis) 적용: 깜빡임(Flickering) 방지
+                    // 한 번 쏘기 시작하면 손가락을 꽤 많이 펼 때까지(0.90) 계속 쏘는 것으로 인정하고,
+                    // 안 쏠 때는 확실히 구부려야(0.75) 쏘는 것으로 인정합니다.
+                    let threshold: CGFloat = wasSpraying ? 0.90 : 0.75
+                    if ratio < threshold {
+                        currentFrameSpraying = true
                     }
+                    missingFramesCount = 0
+                } else {
+                    // 순간적으로 손가락이 카메라에서 흐릿하게 보일 때 에러 카운트 증가
+                    missingFramesCount += 1
                 }
+                
+                // 프레임 튀어오름 방지(Debouncing): 1~3프레임 정도 손가락을 놓치더라도 직전 스프레이 상태를 유지
+                if missingFramesCount > 0 && missingFramesCount < 4 {
+                    isSpraying = wasSpraying
+                } else {
+                    isSpraying = currentFrameSpraying
+                }
+                
+                wasSpraying = isSpraying
                 previousWrist = nil
             } else {
+                wasSpraying = false
                 previousWrist = nil
             }
             
