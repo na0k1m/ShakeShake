@@ -60,6 +60,12 @@ class CameraManager: NSObject, ObservableObject {
         
         if session.canAddOutput(videoOutput) {
             session.addOutput(videoOutput)
+            
+            // ⭐️ 핵심: 모든 맥북/카메라 환경에서 동일한 좌표를 얻기 위해
+            // 비디오 출력(ML로 가는 데이터)도 프리뷰 화면과 동일하게 강제로 거울 모드(Mirroring)를 켭니다.
+            if let connection = videoOutput.connection(with: .video), connection.isVideoMirroringSupported {
+                connection.isVideoMirrored = true
+            }
         }
         
         session.commitConfiguration()

@@ -94,7 +94,8 @@ struct MainCanvasView: View {
                     }
                     
                     let mappedPoint = CGPoint(
-                        x: (1.0 - normalizedPoint.x) * geometry.size.width, // 좌우 반전 처리(거울 모드)
+                        // CameraManager에서 강제로 거울 모드를 켰으므로 더 이상 (1.0 - x) 계산이 필요 없습니다!
+                        x: normalizedPoint.x * geometry.size.width,
                         y: (1.0 - normalizedPoint.y) * geometry.size.height
                     )
                     
@@ -123,7 +124,7 @@ struct MainCanvasView: View {
                 
                 // --- 피그마 커스텀 에셋 렌더링 ---
                 if let handPoint = viewModel.currentHandPoint, viewModel.sprayUIState != .hidden {
-                    let mappedX = (1.0 - handPoint.x) * geometry.size.width
+                    let mappedX = handPoint.x * geometry.size.width
                     let mappedY = (1.0 - handPoint.y) * geometry.size.height
                     
                     // 만약 이미지가 프로젝트에 추가되어 있지 않으면 빈 화면으로 보입니다.
