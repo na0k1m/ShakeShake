@@ -68,10 +68,27 @@ class CameraManager: NSObject, ObservableObject {
             }
         }
         
+        
         session.commitConfiguration()
         
+        startSession()
+    }
+    
+    func startSession() {
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            self?.session.startRunning()
+            guard let self = self else { return }
+            if !self.session.isRunning {
+                self.session.startRunning()
+            }
+        }
+    }
+    
+    func stopSession() {
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
+            if self.session.isRunning {
+                self.session.stopRunning()
+            }
         }
     }
 }
