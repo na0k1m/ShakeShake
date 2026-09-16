@@ -42,40 +42,43 @@ class CameraManager: NSObject, ObservableObject {
     }
     
     private func setupCamera() {
-        session.beginConfiguration()
-        
-        guard let device = AVCaptureDevice.default(for: .video),
-              let input = try? AVCaptureDeviceInput(device: device) else {
-            print("Failed to setup camera input")
-            session.commitConfiguration()
-            return
-        }
-        
-        if session.canAddInput(input) {
-            session.addInput(input)
-        }
-        
-        videoOutput.videoSettings = [kCVPixelBufferPixelFormatTypeKey as String: Int(kCVPixelFormatType_32BGRA)]
-        videoOutput.alwaysDiscardsLateVideoFrames = true
-        
-        if session.canAddOutput(videoOutput) {
-            session.addOutput(videoOutput)
+        cameraQueue.async { [weak self] in
+            guard let self = self else { return }
             
-            // ⭐️ 핵심: 모든 맥북/카메라 환경에서 동일한 좌표를 얻기 위해
-            // 비디오 출력(ML로 가는 데이터)도 프리뷰 화면과 동일하게 강제로 거울 모드(Mirroring)를 켭니다.
-            if let connection = videoOutput.connection(with: .video), connection.isVideoMirroringSupported {
-                connection.isVideoMirrored = true
+            self.session.beginConfiguration()
+            
+            guard let device = AVCaptureDevice.default(for: .video),
+                  let input = try? AVCaptureDeviceInput(device: device) else {
+                print("Failed to setup camera input")
+                self.session.commitConfiguration()
+                return
+            }
+            
+            if self.session.canAddInput(input) {
+                self.session.addInput(input)
+            }
+            
+            self.videoOutput.videoSettings = [kCVPixelBufferPixelFormatTypeKey as String: Int(kCVPixelFormatType_32BGRA)]
+            self.videoOutput.alwaysDiscardsLateVideoFrames = true
+            
+            if self.session.canAddOutput(self.videoOutput) {
+                self.session.addOutput(self.videoOutput)
+                
+                if let connection = self.videoOutput.connection(with: .video), connection.isVideoMirroringSupported {
+                    connection.isVideoMirrored = true
+                }
+            }
+            
+            self.session.commitConfiguration()
+            
+            if !self.session.isRunning {
+                self.session.startRunning()
             }
         }
-        
-        
-        session.commitConfiguration()
-        
-        startSession()
     }
     
     func startSession() {
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+        cameraQueue.async { [weak self] in
             guard let self = self else { return }
             if !self.session.isRunning {
                 self.session.startRunning()
@@ -84,7 +87,7 @@ class CameraManager: NSObject, ObservableObject {
     }
     
     func stopSession() {
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+        cameraQueue.async { [weak self] in
             guard let self = self else { return }
             if self.session.isRunning {
                 self.session.stopRunning()
